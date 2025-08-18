@@ -65,6 +65,8 @@ const OnboardingPage = () => {
     },
     {
       onSuccess: () => {
+        // Invalidate the profile cache so ProfileCheck can see the new profile
+        queryClient.invalidateQueries('userProfile');
         toast.success('Profile created successfully!');
         navigate('/recommendations');
       },
@@ -79,6 +81,8 @@ const OnboardingPage = () => {
     profileAPI.createProfile,
     {
       onSuccess: () => {
+        // Invalidate the profile cache so ProfileCheck can see the new profile
+        queryClient.invalidateQueries('userProfile');
         toast.success('Profile created successfully!');
         navigate('/recommendations');
       },

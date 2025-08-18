@@ -12,8 +12,16 @@ const ProfileCheck = ({ children }) => {
       retry: false,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+      onError: (error) => {
+        console.log('ProfileCheck error:', error);
+      },
+      onSuccess: (data) => {
+        console.log('ProfileCheck success:', data);
+      }
     }
   );
+
+  console.log('ProfileCheck state:', { isLoading, error, profileData });
 
   if (isLoading) {
     return (
@@ -25,9 +33,11 @@ const ProfileCheck = ({ children }) => {
 
   // If there's an error (profile not found) or no profile data, redirect to onboarding
   if (error || !profileData?.profile) {
+    console.log('Redirecting to onboarding. Error:', error, 'ProfileData:', profileData);
     return <Navigate to="/onboarding" replace />;
   }
 
+  console.log('Profile found, showing children');
   // User has completed onboarding, show the protected content
   return children;
 };
