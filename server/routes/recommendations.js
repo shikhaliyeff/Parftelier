@@ -17,7 +17,10 @@ router.get('/', auth, async (req, res) => {
     );
 
     if (!userProfile) {
-      return res.status(404).json({ error: 'User profile not found. Please complete the onboarding quiz first.' });
+      return res.status(404).json({ 
+        error: 'User profile not found. Please complete the onboarding quiz first.',
+        redirectTo: '/onboarding'
+      });
     }
 
     // Build query to get perfumes
@@ -62,23 +65,40 @@ router.get('/', auth, async (req, res) => {
       return res.status(404).json({ error: 'No perfumes found matching your criteria.' });
     }
 
-    // Use AI to generate recommendations
-    const aiRecommendations = await aiService.generateRecommendations(
-      perfumes,
-      userProfile.fragrance_dna,
-      parseInt(limit)
-    );
+    // Use AI to generate recommendations or fallback
+    let aiRecommendations;
+    try {
+      aiRecommendations = await aiService.generateRecommendations(
+        perfumes,
+        userProfile.fragrance_dna,
+        parseInt(limit)
+      );
+    } catch (aiError) {
+      console.error('Error generating recommendations:', aiError);
+      // Fallback: return top perfumes without AI scoring
+      aiRecommendations = perfumes.slice(0, parseInt(limit)).map((perfume, index) => ({
+        perfume_id: perfume.id,
+        score: 1.0 - (index * 0.1) // Simple scoring based on order
+      }));
+    }
 
     // Get full perfume details for recommended perfumes
     const recommendedPerfumes = [];
     for (const rec of aiRecommendations) {
       const perfume = perfumes.find(p => p.id === rec.perfume_id);
       if (perfume) {
-        // Generate personalized explanation
-        const explanation = await aiService.generatePerfumeExplanation(
-          perfume,
-          userProfile.fragrance_dna
-        );
+        // Generate personalized explanation or fallback
+        let explanation;
+        try {
+          explanation = await aiService.generatePerfumeExplanation(
+            perfume,
+            userProfile.fragrance_dna
+          );
+        } catch (aiError) {
+          console.error('Error generating explanation:', aiError);
+          // Fallback: create simple explanation
+          explanation = `This ${perfume.family} fragrance by ${perfume.brand} features notes of ${perfume.notes?.slice(0, 3).map(n => n.name).join(', ')}. Perfect for ${userProfile.fragrance_dna?.contexts?.length > 0 ? userProfile.fragrance_dna.contexts[0] : 'various occasions'}.`;
+        }
 
         recommendedPerfumes.push({
           ...perfume,

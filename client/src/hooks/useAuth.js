@@ -42,13 +42,18 @@ export const AuthProvider = ({ children }) => {
     {
       enabled: !!localStorage.getItem('token'),
       retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // Cache for 5 minutes
       onSuccess: (data) => {
         setUser(data);
       },
-      onError: () => {
-        localStorage.removeItem('token');
-        delete api.defaults.headers.common['Authorization'];
-        setUser(null);
+      onError: (error) => {
+        // Only clear token on 401 errors, not other errors
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          delete api.defaults.headers.common['Authorization'];
+          setUser(null);
+        }
       }
     }
   );

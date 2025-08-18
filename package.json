@@ -11,6 +11,9 @@
     "scraper": "node scraper/index.js",
     "db:setup": "node scripts/setup-database.js",
     "db:seed": "node scripts/seed-data.js",
+    "db:seed-niche": "node scripts/seed-niche-perfumes.js",
+    "scraper:niche": "node scraper/niche-scraper.js",
+    "db:seed-extended": "node scripts/seed-extended-niche.js",
     "start": "node server/index.js"
   },
   "dependencies": {

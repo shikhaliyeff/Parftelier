@@ -22,13 +22,31 @@ class FragranticaScraper {
 
   async init() {
     this.browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      headless: "new",
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     });
     this.page = await this.browser.newPage();
     
     // Set user agent to avoid detection
     await this.page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    // Set viewport
+    await this.page.setViewport({ width: 1920, height: 1080 });
+    
+    // Set extra headers
+    await this.page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+    });
     
     console.log('🚀 Scraper initialized');
   }
@@ -39,7 +57,7 @@ class FragranticaScraper {
 
   async scrapePerfumePage(url) {
     try {
-      await this.page.goto(url, { waitUntil: 'networkidle2' });
+      await this.page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
       await this.delay(this.delay);
 
       const perfumeData = await this.page.evaluate(() => {
@@ -50,7 +68,7 @@ class FragranticaScraper {
 
         const extractNotes = (selector) => {
           const elements = document.querySelectorAll(selector);
-          return Array.from(elements).map(el => el.textContent.trim());
+          return Array.from(elements).map(el => el.textContent.trim()).filter(note => note.length > 0);
         };
 
         const extractYear = (text) => {
@@ -59,24 +77,24 @@ class FragranticaScraper {
           return match ? parseInt(match[1]) : null;
         };
 
-        // Basic info
-        const name = extractText('.fragrance-name h1');
-        const brand = extractText('.fragrance-brand a');
-        const year = extractYear(extractText('.fragrance-year'));
-        const concentration = extractText('.fragrance-concentration');
-        const family = extractText('.fragrance-family');
-        const gender = extractText('.fragrance-gender');
-        const perfumer = extractText('.fragrance-perfumer');
-        const description = extractText('.fragrance-description');
+        // Basic info - updated selectors for Fragrantica
+        const name = extractText('h1') || extractText('.fragrance-name h1') || extractText('.perfume-name');
+        const brand = extractText('.brand a') || extractText('.fragrance-brand a') || extractText('.perfume-brand');
+        const year = extractYear(extractText('.year') || extractText('.fragrance-year') || extractText('.perfume-year'));
+        const concentration = extractText('.concentration') || extractText('.fragrance-concentration');
+        const family = extractText('.family') || extractText('.fragrance-family') || extractText('.perfume-family');
+        const gender = extractText('.gender') || extractText('.fragrance-gender') || extractText('.perfume-gender');
+        const perfumer = extractText('.perfumer') || extractText('.fragrance-perfumer');
+        const description = extractText('.description') || extractText('.fragrance-description') || extractText('.perfume-description');
         
-        // Performance
-        const longevity = extractText('.longevity-rating');
-        const sillage = extractText('.sillage-rating');
+        // Performance ratings
+        const longevity = extractText('.longevity') || extractText('.longevity-rating');
+        const sillage = extractText('.sillage') || extractText('.sillage-rating');
         
-        // Notes
-        const topNotes = extractNotes('.top-notes .note');
-        const middleNotes = extractNotes('.middle-notes .note');
-        const baseNotes = extractNotes('.base-notes .note');
+        // Notes - updated selectors for Fragrantica
+        const topNotes = extractNotes('.top-notes .note') || extractNotes('.pyramid .top .note') || extractNotes('.notes .top .note');
+        const middleNotes = extractNotes('.middle-notes .note') || extractNotes('.pyramid .middle .note') || extractNotes('.notes .middle .note');
+        const baseNotes = extractNotes('.base-notes .note') || extractNotes('.pyramid .base .note') || extractNotes('.notes .base .note');
 
         return {
           name,
@@ -181,22 +199,80 @@ class FragranticaScraper {
     }
   }
 
-  async scrapePopularPerfumes() {
+  async scrapeNichePerfumes() {
     try {
-      console.log('🔍 Starting to scrape popular perfumes...');
+      console.log('🔍 Starting to scrape niche perfumes...');
       
-      // Start with popular perfumes page
-      await this.page.goto('https://www.fragrantica.com/popular/', { waitUntil: 'networkidle2' });
-      await this.delay(this.delay);
+      // List of niche perfume brands to scrape
+      const nicheBrands = [
+        'Creed',
+        'Tom Ford',
+        'Maison Francis Kurkdjian',
+        'Byredo',
+        'Le Labo',
+        'Diptyque',
+        'Jo Malone',
+        'Penhaligon\'s',
+        'Amouage',
+        'Xerjoff',
+        'Roja Dove',
+        'Parfums de Marly',
+        'Initio Parfums',
+        'Mancera',
+        'Montale',
+        'Serge Lutens',
+        'L\'Artisan Parfumeur',
+        'Annick Goutal',
+        'Frederic Malle',
+        'Maison Margiela',
+        'Kilian',
+        'By Kilian',
+        'Maison Christian Dior',
+        'Guerlain',
+        'Chanel',
+        'Dior',
+        'Hermès',
+        'Bvlgari',
+        'Cartier',
+        'Yves Saint Laurent'
+      ];
 
-      const perfumeLinks = await this.page.evaluate(() => {
-        const links = document.querySelectorAll('.perfume-card a[href*="/perfume/"]');
-        return Array.from(links).map(link => link.href).slice(0, 100);
-      });
+      const perfumeLinks = [];
 
-      console.log(`📋 Found ${perfumeLinks.length} perfumes to scrape`);
+      // Scrape perfumes from each niche brand
+      for (const brand of nicheBrands) {
+        try {
+          console.log(`🔍 Scraping perfumes from ${brand}...`);
+          
+          // Search for the brand on Fragrantica
+          const searchUrl = `https://www.fragrantica.com/search?q=${encodeURIComponent(brand)}`;
+          await this.page.goto(searchUrl, { waitUntil: 'networkidle2' });
+          await this.delay(this.delay);
 
-      for (const link of perfumeLinks) {
+          const brandPerfumes = await this.page.evaluate(() => {
+            const links = document.querySelectorAll('a[href*="/perfume/"]');
+            return Array.from(links)
+              .map(link => link.href)
+              .filter(href => href.includes('/perfume/'))
+              .slice(0, 20); // Limit to 20 perfumes per brand
+          });
+
+          perfumeLinks.push(...brandPerfumes);
+          console.log(`📋 Found ${brandPerfumes.length} perfumes from ${brand}`);
+          
+          // Be respectful with delays between brands
+          await this.delay(this.delay * 2);
+        } catch (error) {
+          console.error(`❌ Error scraping ${brand}:`, error.message);
+          continue;
+        }
+      }
+
+      // Remove duplicates
+      const uniqueLinks = [...new Set(perfumeLinks)];
+      console.log(`📋 Found ${uniqueLinks.length} unique niche perfumes to scrape`);
+
+      for (const link of uniqueLinks) {
         if (this.scrapedCount >= this.maxPerfumes) {
           console.log(`🛑 Reached maximum limit of ${this.maxPerfumes} perfumes`);
           break;
@@ -217,7 +293,7 @@ class FragranticaScraper {
         await this.delay(this.delay);
       }
 
-      console.log(`🎉 Scraping completed! Scraped ${this.scrapedCount} perfumes`);
+      console.log(`🎉 Scraping completed! Scraped ${this.scrapedCount} niche perfumes`);
     } catch (error) {
       console.error('❌ Error during scraping:', error);
     }
@@ -237,7 +313,7 @@ const runScraper = async () => {
   
   try {
     await scraper.init();
-    await scraper.scrapePopularPerfumes();
+    await scraper.scrapeNichePerfumes();
   } catch (error) {
     console.error('💥 Scraper failed:', error);
   } finally {

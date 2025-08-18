@@ -11,11 +11,17 @@ const RecommendationsPage = () => {
   const queryClient = useQueryClient();
 
   // Get recommendations
-  const { data: recommendations, isLoading, refetch } = useQuery(
+  const { data: recommendations, isLoading, refetch, error } = useQuery(
     ['recommendations', context],
     () => recommendationsAPI.getRecommendations({ context, limit: 10 }),
     {
       enabled: false, // Don't auto-fetch, user needs to trigger
+      onError: (error) => {
+        if (error.response?.status === 404 && error.response?.data?.error?.includes('profile not found')) {
+          // Redirect to onboarding if profile not found
+          window.location.href = '/onboarding';
+        }
+      }
     }
   );
 
@@ -77,6 +83,33 @@ const RecommendationsPage = () => {
     { value: 'winter', label: 'Winter' },
     { value: 'casual', label: 'Casual' }
   ];
+
+  // Show onboarding prompt if no profile
+  if (error?.response?.status === 404 && error.response?.data?.error?.includes('profile not found')) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="w-24 h-24 bg-gradient-to-r from-perfume-500 to-rose-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Star className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-3xl font-elegant font-bold text-gray-900 mb-4">
+              Complete Your Profile First
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              To get personalized recommendations, please complete the onboarding quiz.
+            </p>
+            <button
+              onClick={() => window.location.href = '/onboarding'}
+              className="btn-primary text-lg px-8 py-3"
+            >
+              Start Onboarding Quiz
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

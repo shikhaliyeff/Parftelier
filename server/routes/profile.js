@@ -17,10 +17,24 @@ router.post('/', auth, async (req, res) => {
       answers 
     } = req.body;
 
-    // Generate fragrance DNA using AI
+    // Generate fragrance DNA using AI or fallback
     let fragranceDNA;
     if (answers) {
-      fragranceDNA = await aiService.generateFragranceDNA(answers);
+      try {
+        fragranceDNA = await aiService.generateFragranceDNA(answers);
+      } catch (aiError) {
+        console.error('AI service error:', aiError);
+        // Fallback: create simple fragrance DNA from answers
+        fragranceDNA = {
+          families: answers.scent_families || [],
+          notes: answers.favorite_notes || [],
+          contexts: answers.usage_contexts || [],
+          performance: {
+            longevity: answers.longevity_preference || 'moderate',
+            sillage: answers.sillage_preference || 'moderate'
+          }
+        };
+      }
     } else {
       fragranceDNA = {
         families: preferred_families || {},
@@ -170,8 +184,15 @@ router.patch('/', auth, async (req, res) => {
   }
 });
 
-// Get onboarding questions
+// Get onboarding questions (public route - no auth required)
 router.get('/onboarding-questions', (req, res) => {
+  // Force fresh response - no caching
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  
   const questions = {
     scent_families: {
       question: "Which scent families do you prefer?",

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Components
 import Layout from './components/Layout/Layout';
 import LoadingSpinner from './components/UI/LoadingSpinner';
+import ProfileCheck from './components/ProfileCheck';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -19,7 +20,7 @@ import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 
 // Protected Route Component
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, requireOnboarding = false }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -30,7 +31,16 @@ const ProtectedRoute = ({ children }) => {
     );
   }
   
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // If onboarding is required and user doesn't have a profile, redirect to onboarding
+  if (requireOnboarding) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  
+  return children;
 };
 
 // Public Route Component (redirects to home if already logged in)
@@ -82,41 +92,51 @@ function App() {
           
           <Route path="/recommendations" element={
             <ProtectedRoute>
-              <Layout>
-                <RecommendationsPage />
-              </Layout>
+              <ProfileCheck>
+                <Layout>
+                  <RecommendationsPage />
+                </Layout>
+              </ProfileCheck>
             </ProtectedRoute>
           } />
           
           <Route path="/perfume/:id" element={
             <ProtectedRoute>
-              <Layout>
-                <PerfumeDetailPage />
-              </Layout>
+              <ProfileCheck>
+                <Layout>
+                  <PerfumeDetailPage />
+                </Layout>
+              </ProfileCheck>
             </ProtectedRoute>
           } />
           
           <Route path="/shelf" element={
             <ProtectedRoute>
-              <Layout>
-                <MyShelfPage />
-              </Layout>
+              <ProfileCheck>
+                <Layout>
+                  <MyShelfPage />
+                </Layout>
+              </ProfileCheck>
             </ProtectedRoute>
           } />
           
           <Route path="/search" element={
             <ProtectedRoute>
-              <Layout>
-                <SearchPage />
-              </Layout>
+              <ProfileCheck>
+                <Layout>
+                  <SearchPage />
+                </Layout>
+              </ProfileCheck>
             </ProtectedRoute>
           } />
           
           <Route path="/profile" element={
             <ProtectedRoute>
-              <Layout>
-                <ProfilePage />
-              </Layout>
+              <ProfileCheck>
+                <Layout>
+                  <ProfilePage />
+                </Layout>
+              </ProfileCheck>
             </ProtectedRoute>
           } />
           
