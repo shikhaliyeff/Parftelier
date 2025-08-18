@@ -1,0 +1,172 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-perfume-500 to-perfume-600 hover:from-perfume-600 hover:to-perfume-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-perfume hover:shadow-perfume-lg transform hover:-translate-y-0.5;
+  }
+  
+  .btn-secondary {
+    @apply bg-white border-2 border-perfume-200 text-perfume-700 hover:bg-perfume-50 hover:border-perfume-300 font-medium py-3 px-6 rounded-lg transition-all duration-200;
+  }
+  
+  .btn-ghost {
+    @apply text-gray-600 hover:text-perfume-600 hover:bg-perfume-50 font-medium py-2 px-4 rounded-lg transition-all duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-perfume border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-perfume-lg hover:-translate-y-1;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-perfume-500 focus:border-transparent transition-all duration-200 bg-white;
+  }
+  
+  .perfume-gradient {
+    background: linear-gradient(135deg, #fef7ee 0%, #fdecd3 50%, #fbd5a5 100%);
+  }
+  
+  .glass-effect {
+    @apply backdrop-blur-md bg-white/80 border border-white/20;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-perfume-600 to-rose-600 bg-clip-text text-transparent;
+  }
+  
+  .perfume-pattern {
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(251, 213, 165, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(251, 213, 165, 0.1) 0%, transparent 50%);
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* Custom animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Perfume bottle icon animation */
+@keyframes bottle-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
+
+.bottle-float {
+  animation: bottle-float 3s ease-in-out infinite;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid #f3f4f6;
+  border-top: 3px solid #f2750a;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Perfume card hover effects */
+.perfume-card {
+  @apply relative overflow-hidden;
+}
+
+.perfume-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s;
+}
+
+.perfume-card:hover::before {
+  left: 100%;
+}
+
+/* Rating stars */
+.star-rating {
+  @apply flex items-center space-x-1;
+}
+
+.star {
+  @apply text-gray-300 transition-colors duration-200;
+}
+
+.star.filled {
+  @apply text-amber-400;
+}
+
+.star.half {
+  @apply text-amber-400;
+}
+
+/* Note tags */
+.note-tag {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-perfume-100 text-perfume-800 border border-perfume-200;
+}
+
+.note-tag.top {
+  @apply bg-rose-100 text-rose-800 border-rose-200;
+}
+
+.note-tag.middle {
+  @apply bg-amber-100 text-amber-800 border-amber-200;
+}
+
+.note-tag.base {
+  @apply bg-gold-100 text-gold-800 border-gold-200;
+}
