@@ -22,34 +22,42 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    console.log('🔐 useAuth: Component mounted, checking localStorage');
+    const storedToken = localStorage.getItem('token');
+    console.log('🔐 useAuth: Stored token exists:', !!storedToken);
+    if (storedToken) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+      console.log('🔐 useAuth: Token set in API headers');
     }
     setLoading(false);
+    console.log('🔐 useAuth: Initial loading complete');
   }, []);
 
   // Get current user
-  const { data: currentUser, isLoading: userLoading } = useQuery(
+  const { isLoading: userLoading } = useQuery(
     'currentUser',
     async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return null;
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) return null;
       
       const response = await api.get('/auth/me');
       return response.data.user;
     },
     {
-      enabled: !!localStorage.getItem('token'),
-      retry: false,
+      enabled: !!localStorage.getItem('token'), // Check localStorage directly
+      retry: 1,
+      retryDelay: 1000,
       refetchOnWindowFocus: false,
       staleTime: 5 * 60 * 1000, // Cache for 5 minutes
       onSuccess: (data) => {
+        console.log('🔐 useAuth: Current user loaded:', data);
         setUser(data);
       },
       onError: (error) => {
+        console.error('🔐 useAuth: Current user error:', error);
         // Only clear token on 401 errors, not other errors
         if (error.response?.status === 401) {
+          console.log('🔐 useAuth: Token expired, clearing authentication');
           localStorage.removeItem('token');
           delete api.defaults.headers.common['Authorization'];
           setUser(null);
@@ -61,19 +69,24 @@ export const AuthProvider = ({ children }) => {
   // Login mutation
   const loginMutation = useMutation(
     async (credentials) => {
+      console.log('🔐 useAuth: Starting login mutation with credentials:', credentials);
       const response = await api.post('/auth/login', credentials);
+      console.log('🔐 useAuth: Login API response:', response.data);
       return response.data;
     },
     {
       onSuccess: (data) => {
+        console.log('🔐 useAuth: Login mutation success, data:', data);
         localStorage.setItem('token', data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
         setUser(data.user);
         queryClient.invalidateQueries('currentUser');
         toast.success('Welcome back!');
+        console.log('🔐 useAuth: Navigating to home page');
         navigate('/');
       },
       onError: (error) => {
+        console.error('🔐 useAuth: Login mutation error:', error);
         const message = error.response?.data?.error || 'Login failed';
         toast.error(message);
       }
@@ -104,6 +117,7 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
+    console.log('🔐 useAuth: Logging out user');
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);

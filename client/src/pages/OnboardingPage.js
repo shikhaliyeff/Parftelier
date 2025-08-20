@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
@@ -7,18 +7,53 @@ import { profileAPI } from '../services/api';
 import api from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { useAuth } from '../hooks/useAuth';
 
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
 
-  // No need to clear cache on mount - let React Query handle caching
+  // Clear profile cache on mount
+  useEffect(() => {
+    queryClient.removeQueries('userProfile');
+    console.log('Cleared userProfile cache on mount');
+  }, [queryClient]);
+
+  // Check if user already has a profile
+  const { data: profileData, isLoading: profileLoading, error: profileError } = useQuery(
+    'userProfile',
+    profileAPI.getProfile,
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      staleTime: 0,
+      cacheTime: 0,
+      onSuccess: (data) => {
+        console.log('OnboardingPage - Profile check success:', data);
+        if (data?.profile) {
+          console.log('OnboardingPage - User already has profile, redirecting to recommendations');
+          navigate('/recommendations', { replace: true });
+        }
+      },
+      onError: (error) => {
+        console.log('OnboardingPage - Profile check error:', error);
+      }
+    }
+  );
+
+  console.log('OnboardingPage - Profile state:', { 
+    profileData, 
+    profileLoading, 
+    profileError, 
+    hasProfile: !!profileData?.profile 
+  });
 
 
 
@@ -65,10 +100,14 @@ const OnboardingPage = () => {
     },
     {
       onSuccess: () => {
-        // Invalidate the profile cache so ProfileCheck can see the new profile
+        // Clear all cache and invalidate the profile cache
+        queryClient.clear();
         queryClient.invalidateQueries('userProfile');
         toast.success('Profile created successfully!');
-        navigate('/recommendations');
+        // Longer delay to ensure cache is cleared and database is updated
+        setTimeout(() => {
+          navigate('/recommendations');
+        }, 500);
       },
       onError: (error) => {
         toast.error(error.response?.data?.error || 'Failed to create profile');
@@ -81,28 +120,80 @@ const OnboardingPage = () => {
     profileAPI.createProfile,
     {
       onSuccess: () => {
-        // Invalidate the profile cache so ProfileCheck can see the new profile
+        console.log('Profile created successfully');
+        // Clear all cache and invalidate the profile cache
+        queryClient.clear();
         queryClient.invalidateQueries('userProfile');
+        queryClient.removeQueries('userProfile'); // Force remove the query
         toast.success('Profile created successfully!');
-        navigate('/recommendations');
+        // Clean up pending answers
+        localStorage.removeItem('pendingQuizAnswers');
+        // Set the bypass flag and navigate with a small delay to ensure profile is created
+        localStorage.setItem('profileJustCreated', 'true');
+        setTimeout(() => {
+          navigate('/recommendations');
+        }, 100);
       },
       onError: (error) => {
+        console.error('Profile creation failed:', error);
         toast.error(error.response?.data?.error || 'Failed to create profile');
       }
     }
   );
 
+  // Check for pending quiz answers and auto-create profile
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const pendingAnswers = localStorage.getItem('pendingQuizAnswers');
+    
+    console.log('Checking pending answers - token:', !!token, 'pendingAnswers:', !!pendingAnswers, 'profileData:', profileData, 'profileLoading:', profileLoading);
+    
+    if (token && pendingAnswers && !profileLoading && !profileData?.profile && profileError?.response?.status === 404) {
+      console.log('Found pending quiz answers for logged in user with no profile, creating profile automatically');
+      try {
+        const parsedAnswers = JSON.parse(pendingAnswers);
+        console.log('Auto-creating profile with pending answers:', parsedAnswers);
+        createProfileMutation.mutate({ answers: parsedAnswers });
+        localStorage.removeItem('pendingQuizAnswers'); // Clean up immediately
+      } catch (error) {
+        console.error('Error parsing pending answers or creating profile:', error);
+        localStorage.removeItem('pendingQuizAnswers'); // Clean up invalid data
+      }
+    }
+  }, [profileData, profileLoading, profileError, createProfileMutation]);
+
 
 
   // Early return if still loading
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner size="lg" text="Loading your personalized experience..." />
           <div className="mt-4 text-sm text-gray-500">
-            Fetching onboarding questions...
+            {isLoading ? 'Fetching onboarding questions...' : 'Checking your profile...'}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If user already has a profile, show a message and redirect
+  if (profileData?.profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-perfume-500 to-perfume-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile Already Exists</h2>
+          <p className="text-gray-600 mb-6">You already have a fragrance profile. Redirecting to your recommendations...</p>
+          <button
+            onClick={() => navigate('/recommendations')}
+            className="px-6 py-3 bg-perfume-600 text-white rounded-lg hover:bg-perfume-700"
+          >
+            View My Recommendations
+          </button>
         </div>
       </div>
     );
@@ -272,18 +363,38 @@ const OnboardingPage = () => {
     }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < questionKeys.length - 1) {
       setCurrentStep(prev => prev + 1);
     } else {
-      // Check if user is already logged in
+      // Final step - check if user is logged in
       const token = localStorage.getItem('token');
-      if (token) {
-        // User is already logged in, create profile directly
-        createProfileMutation.mutate({ answers });
-      } else {
-        // Show email form for account creation
+      console.log('=== HANDLE NEXT FINAL STEP ===');
+      console.log('Token exists:', !!token);
+      console.log('User object:', user);
+      console.log('ProfileData:', profileData);
+      console.log('ProfileError:', profileError);
+      console.log('ProfileLoading:', profileLoading);
+      
+      if (!token) {
+        // User not logged in - show email form for registration
+        console.log('No token found, showing email form');
         setShowEmailForm(true);
+        return;
+      }
+      
+      // User is logged in - save answers to localStorage and try to create profile
+      console.log('User is logged in, saving answers and creating profile');
+      localStorage.setItem('pendingQuizAnswers', JSON.stringify(answers));
+      
+      // Try to create profile immediately
+      try {
+        console.log('Creating profile with answers:', answers);
+        createProfileMutation.mutate({ answers });
+      } catch (error) {
+        console.error('Error creating profile:', error);
+        // If profile creation fails, navigate anyway - ProfileCheck will handle it
+        navigate('/recommendations');
       }
     }
   };
@@ -403,7 +514,7 @@ const OnboardingPage = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Let's create your personalized fragrance profile
+            {user ? 'Let\'s update your personalized fragrance profile' : 'Let\'s create your personalized fragrance profile'}
           </p>
         </motion.div>
 
@@ -454,18 +565,20 @@ const OnboardingPage = () => {
 
             <button
               onClick={handleNext}
-              disabled={!canProceed() || (registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading)}
+              disabled={!canProceed() || (registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading) || profileLoading}
               className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-                canProceed() && !(registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading)
+                canProceed() && !(registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading || profileLoading)
                   ? 'btn-primary'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
               <span>
                 {currentStep === questionKeys.length - 1
-                  ? (registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading)
-                    ? 'Creating Profile...'
-                    : 'Create Profile'
+                  ? profileLoading
+                    ? 'Checking Profile...'
+                    : (registerAndCreateProfileMutation.isLoading || createProfileMutation.isLoading)
+                      ? 'Creating Profile...'
+                      : user ? 'See Recommendations' : 'Create Profile'
                   : 'Next'
                 }
               </span>

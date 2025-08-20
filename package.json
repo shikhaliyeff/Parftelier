@@ -5,36 +5,39 @@
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server/index.js",
+    "server": "cd server && node index.js",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
-    "scraper": "node scraper/index.js",
+    "scraper": "cd scraper && node index.js",
     "db:setup": "node scripts/setup-database.js",
-    "db:seed": "node scripts/seed-data.js",
+    "db:seed": "node scripts/seed-niche-perfumes.js",
     "db:seed-niche": "node scripts/seed-niche-perfumes.js",
-    "scraper:niche": "node scraper/niche-scraper.js",
+    "scraper:niche": "cd scraper && node niche-scraper.js",
     "db:seed-extended": "node scripts/seed-extended-niche.js",
-    "start": "node server/index.js"
+    "db:update-images": "node scripts/update-perfume-images.js",
+    "start": "cd server && node index.js",
+    "verify": "node verify-env.js",
+    "check-env": "node check-env.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.1.2",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "pg": "^8.11.3",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "openai": "^4.20.1",
-    "cheerio": "^1.0.0-rc.12",
-    "puppeteer": "^21.5.2",
-    "axios": "^1.6.0",
-    "helmet": "^7.1.0",
+    "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
-    "compression": "^1.7.4",
-    "morgan": "^1.10.0"
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "openai": "^4.20.1",
+    "pg": "^8.11.3",
+    "puppeteer": "^21.5.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1"
   },
   "keywords": [
     "perfume",

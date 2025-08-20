@@ -4,10 +4,14 @@ import { motion } from 'framer-motion';
 import { Heart, Star, Filter, RefreshCw } from 'lucide-react';
 import { recommendationsAPI, shelfAPI } from '../services/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
+import PerfumeDetailModal from '../components/PerfumeDetailModal';
+import { getFamilySpecificPerfumeImage, getPerfumeGradient } from '../utils/perfumeImages';
 import toast from 'react-hot-toast';
 
 const RecommendationsPage = () => {
   const [context, setContext] = useState('');
+  const [selectedPerfume, setSelectedPerfume] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Get recommendations
@@ -15,12 +19,26 @@ const RecommendationsPage = () => {
     ['recommendations', context],
     () => recommendationsAPI.getRecommendations({ context, limit: 10 }),
     {
-      enabled: false, // Don't auto-fetch, user needs to trigger
+      enabled: true, // Auto-fetch when component loads
+      retry: 1,
+      retryDelay: 1000,
       onError: (error) => {
+        console.error('🔍 Recommendations error:', error);
+        console.error('🔍 Recommendations error details:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          config: error.config
+        });
         if (error.response?.status === 404 && error.response?.data?.error?.includes('profile not found')) {
           // Redirect to onboarding if profile not found
           window.location.href = '/onboarding';
         }
+      },
+      onSuccess: (data) => {
+        console.log('🔍 Recommendations loaded:', data);
+        console.log('🔍 Recommendations data structure:', JSON.stringify(data, null, 2));
+        console.log('🔍 Recommendations.data?.recommendations:', data?.data?.recommendations);
       }
     }
   );
@@ -56,6 +74,16 @@ const RecommendationsPage = () => {
     refetch();
   };
 
+  const handleCardClick = (perfume) => {
+    setSelectedPerfume(perfume);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPerfume(null);
+  };
+
   const handleAddToShelf = (perfume) => {
     addToShelfMutation.mutate({
       perfume_id: perfume.id,
@@ -65,9 +93,9 @@ const RecommendationsPage = () => {
   };
 
   const handleFeedback = (perfume, feedbackType) => {
-    if (recommendations?.session_id) {
+    if (recommendations?.data?.session_id) {
       feedbackMutation.mutate({
-        session_id: recommendations.session_id,
+        session_id: recommendations.data.session_id,
         perfume_id: perfume.id,
         feedback_type: feedbackType,
         rating: feedbackType === 'like' ? 5 : 2
@@ -173,20 +201,46 @@ const RecommendationsPage = () => {
           </div>
         )}
 
-        {recommendations?.recommendations && (
+        {recommendations?.data?.recommendations && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {recommendations.recommendations.map((perfume, index) => (
+            {recommendations.data.recommendations.map((perfume, index) => (
               <motion.div
                 key={perfume.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="card p-6"
+                className="card p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                onClick={() => handleCardClick(perfume)}
               >
+                {/* Perfume Image */}
+                <div className="w-full h-32 rounded-lg overflow-hidden mb-4">
+                  <img
+                    src={getFamilySpecificPerfumeImage(perfume)}
+                    alt={`${perfume.name} by ${perfume.brand}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to gradient background if image fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div 
+                    className={`w-full h-full bg-gradient-to-br ${getPerfumeGradient(perfume)} flex items-center justify-center hidden`}
+                    style={{ display: 'none' }}
+                  >
+                    <div className="text-center">
+                      <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <Star className="w-6 h-6 text-white" />
+                      </div>
+                      <p className="text-xs text-white font-medium">{perfume.brand}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Perfume Info */}
                 <div className="mb-4">
                   <h3 className="text-xl font-semibold text-gray-900 mb-1">
@@ -237,7 +291,7 @@ const RecommendationsPage = () => {
                 )}
 
                 {/* Actions */}
-                <div className="flex space-x-2">
+                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleAddToShelf(perfume)}
                     disabled={addToShelfMutation.isLoading}
@@ -265,7 +319,7 @@ const RecommendationsPage = () => {
         )}
 
         {/* Empty State */}
-        {!isLoading && !recommendations?.recommendations && (
+        {!isLoading && !recommendations?.data?.recommendations && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -285,6 +339,11 @@ const RecommendationsPage = () => {
           </motion.div>
         )}
       </div>
+      <PerfumeDetailModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        perfume={selectedPerfume}
+      />
     </div>
   );
 };

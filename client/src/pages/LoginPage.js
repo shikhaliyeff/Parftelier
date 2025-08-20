@@ -17,8 +17,18 @@ const LoginPage = () => {
   } = useForm();
 
   const onSubmit = (data) => {
-    login(data);
+    console.log('🔐 Login attempt with data:', data);
+    console.log('🔐 isLoggingIn state:', isLoggingIn);
+    
+    try {
+      login(data);
+      console.log('🔐 Login function called successfully');
+    } catch (error) {
+      console.error('🔐 Error calling login function:', error);
+    }
   };
+
+  console.log('🔐 LoginPage rendered, isLoggingIn:', isLoggingIn);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-perfume-50 via-white to-rose-50 flex items-center justify-center px-4">
@@ -159,13 +169,19 @@ const LoginPage = () => {
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
             By signing in, you agree to our{' '}
-            <a href="#" className="text-perfume-600 hover:text-perfume-700">
+            <button 
+              type="button"
+              className="text-perfume-600 hover:text-perfume-700 underline"
+            >
               Terms of Service
-            </a>{' '}
+            </button>{' '}
             and{' '}
-            <a href="#" className="text-perfume-600 hover:text-perfume-700">
+            <button 
+              type="button"
+              className="text-perfume-600 hover:text-perfume-700 underline"
+            >
               Privacy Policy
-            </a>
+            </button>
           </p>
         </div>
       </motion.div>

@@ -1,9 +1,39 @@
-const OpenAI = require('openai');
-require('dotenv').config();
+// Lazy load OpenAI to avoid initialization errors at module load time
+let OpenAI = null;
+let openai = null;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getOpenAI() {
+  if (!OpenAI) {
+    try {
+      OpenAI = require('openai');
+    } catch (error) {
+      console.error('Failed to load OpenAI module:', error);
+      return null;
+    }
+  }
+  return OpenAI;
+}
+
+function initializeOpenAI() {
+  if (!openai) {
+    const OpenAI = getOpenAI();
+    if (!OpenAI) {
+      return null;
+    }
+    
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+        console.log('OpenAI client initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize OpenAI client:', error);
+      }
+    }
+  }
+  return openai;
+}
 
 class AIService {
   constructor() {
@@ -12,6 +42,12 @@ class AIService {
 
   async generateFragranceDNA(userAnswers) {
     try {
+      // Initialize OpenAI client if needed
+      const client = initializeOpenAI();
+      if (!client) {
+        throw new Error('OpenAI client not available - API key may be missing');
+      }
+
       const prompt = `
         Based on the user's perfume preferences, convert their answers into a structured Fragrance DNA profile.
         
@@ -53,7 +89,7 @@ class AIService {
         Only include the JSON response, no additional text.
       `;
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
@@ -70,6 +106,12 @@ class AIService {
 
   async generateRecommendations(perfumes, userProfile, limit = 10) {
     try {
+      // Initialize OpenAI client if needed
+      const client = initializeOpenAI();
+      if (!client) {
+        throw new Error('OpenAI client not available - API key may be missing');
+      }
+
       const perfumeData = perfumes.map(p => ({
         id: p.id,
         name: p.name,
@@ -88,8 +130,8 @@ class AIService {
         User Profile:
         ${JSON.stringify(userProfile, null, 2)}
         
-        Available Perfumes (${perfumes.length} total):
-        ${JSON.stringify(perfumeData, null, 2)}
+        Available Perfumes (first 20 of ${perfumes.length} total):
+        ${JSON.stringify(perfumeData.slice(0, 20), null, 2)}
         
         Please analyze each perfume and return a JSON array of the top ${limit} recommendations with scores and explanations:
         [
@@ -110,7 +152,7 @@ class AIService {
         Only return the JSON array, no additional text.
       `;
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
@@ -127,40 +169,64 @@ class AIService {
 
   async generatePerfumeExplanation(perfume, userProfile) {
     try {
-      const prompt = `
-        You are a perfume expert writing for a premium fragrance app. Create a compelling, concise explanation of why this perfume would suit the user.
-        
-        Perfume Details:
-        ${JSON.stringify(perfume, null, 2)}
-        
-        User Profile:
-        ${JSON.stringify(userProfile, null, 2)}
-        
-        Write a 2-3 sentence explanation that:
-        1. Highlights the key notes that match the user's preferences
-        2. Explains the fragrance character and when it's best worn
-        3. Uses elegant, premium language suitable for a luxury fragrance app
-        4. Avoids mentioning external websites or sources
-        
-        Keep it concise and engaging. Focus on the personal connection between the perfume and the user's taste.
-      `;
+      const client = await initializeOpenAI();
+      
+      const prompt = `Given this perfume: ${perfume.name} by ${perfume.brand} (${perfume.family} family, ${perfume.gender})
+Notes: ${perfume.notes?.map(n => n.name).join(', ')}
+Description: ${perfume.description}
 
-      const response = await openai.chat.completions.create({
-        model: this.model,
+And this user profile: ${JSON.stringify(userProfile)}
+
+Generate a brief, personalized explanation (2-3 sentences) of why this perfume would be a good match for this user. Focus on the fragrance family, notes, and user preferences. Keep it conversational and engaging.`;
+
+      const response = await client.chat.completions.create({
+        model: 'gpt-4',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.7,
         max_tokens: 150,
+        temperature: 0.7
       });
 
       return response.choices[0].message.content.trim();
     } catch (error) {
       console.error('Error generating perfume explanation:', error);
-      return 'This fragrance aligns with your preferences and would be a great addition to your collection.';
+      
+      // Provide fallback explanation based on perfume family
+      const fallbackExplanations = {
+        'Oriental': 'This sophisticated oriental fragrance would complement your taste for warm, sensual scents with its rich and exotic character.',
+        'Woody': 'This elegant woody fragrance aligns with your preference for natural, earthy scents that provide depth and sophistication.',
+        'Fresh': 'This refreshing fragrance matches your love for clean, invigorating scents that are perfect for everyday wear.',
+        'Floral': 'This beautiful floral fragrance would enhance your collection with its romantic and feminine character.',
+        'Citrus': 'This vibrant citrus fragrance would add brightness to your collection with its uplifting and energizing qualities.',
+        'Aromatic': 'This aromatic fragrance would complement your taste for herbal and spicy notes with its sophisticated complexity.',
+        'Chypre': 'This classic chypre fragrance would add timeless elegance to your collection with its sophisticated structure.',
+        'Gourmand': 'This indulgent gourmand fragrance would satisfy your love for sweet, comforting scents.',
+        'Aquatic': 'This fresh aquatic fragrance would bring a sense of calm and tranquility to your collection.',
+        'Leather': 'This bold leather fragrance would add a touch of luxury and sophistication to your collection.',
+        'Powdery': 'This elegant powdery fragrance would add a soft, refined touch to your collection.',
+        'Spicy': 'This warm spicy fragrance would complement your taste for bold, adventurous scents.',
+        'Fruity': 'This playful fruity fragrance would add a fun and energetic element to your collection.',
+        'Mossy': 'This natural mossy fragrance would connect you with earthy, organic scents.',
+        'Amber': 'This rich amber fragrance would provide warmth and sensuality to your collection.',
+        'Musky': 'This sensual musky fragrance would add depth and intimacy to your collection.',
+        'Vanilla': 'This comforting vanilla fragrance would bring warmth and sweetness to your collection.',
+        'Tobacco': 'This sophisticated tobacco fragrance would add a touch of luxury and maturity to your collection.',
+        'Incense': 'This spiritual incense fragrance would bring a sense of mystery and depth to your collection.',
+        'Resinous': 'This rich resinous fragrance would add complexity and warmth to your collection.'
+      };
+      
+      return fallbackExplanations[perfume.family] || 
+             'This fragrance aligns with your preferences and would be a great addition to your collection.';
     }
   }
 
   async refineRecommendationsWithFeedback(recommendations, userFeedback) {
     try {
+      // Initialize OpenAI client if needed
+      const client = initializeOpenAI();
+      if (!client) {
+        throw new Error('OpenAI client not available - API key may be missing');
+      }
+
       const prompt = `
         Based on the user's feedback on previous recommendations, refine the scoring algorithm for future recommendations.
         
@@ -185,7 +251,7 @@ class AIService {
         Only return the JSON object, no additional text.
       `;
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
@@ -202,6 +268,11 @@ class AIService {
 
   async generatePerfumeSummary(perfume) {
     try {
+      // Check if OpenAI client is available
+      if (!openai) {
+        throw new Error('OpenAI client not available');
+      }
+
       const prompt = `
         Create a premium, concise summary of this perfume for a luxury fragrance app.
         

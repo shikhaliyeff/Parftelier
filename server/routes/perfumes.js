@@ -17,20 +17,29 @@ router.get('/search', async (req, res) => {
       order = 'asc'
     } = req.query;
 
+    // Validate parameters
+    const validLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100); // Between 1 and 100
+    const validOffset = Math.max(parseInt(offset) || 0, 0); // Non-negative
+    const validSort = ['name', 'brand', 'year', 'family'].includes(sort) ? sort : 'name';
+    const validOrder = ['asc', 'desc'].includes(order.toLowerCase()) ? order.toLowerCase() : 'asc';
+
     // Build search query
     let query = `
       SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'name', n.name,
+              'category', n.category,
+              'family', n.family
+            )
+          ) FROM perfume_notes pn2 
+           INNER JOIN notes n ON pn2.note_id = n.id 
+           WHERE pn2.perfume_id = p.id),
+          '[]'::json
         ) as notes
       FROM perfumes p
-      LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
-      LEFT JOIN notes n ON pn.note_id = n.id
     `;
 
     const whereConditions = [];
@@ -61,20 +70,13 @@ router.get('/search', async (req, res) => {
       query += ` WHERE ${whereConditions.join(' AND ')}`;
     }
 
-    query += ` GROUP BY p.id`;
+
 
     // Add sorting
-    const validSortFields = ['name', 'brand', 'year', 'family'];
-    const validOrders = ['asc', 'desc'];
-    
-    if (validSortFields.includes(sort) && validOrders.includes(order.toLowerCase())) {
-      query += ` ORDER BY p.${sort} ${order.toUpperCase()}`;
-    } else {
-      query += ` ORDER BY p.name ASC`;
-    }
+    query += ` ORDER BY p.${validSort} ${validOrder.toUpperCase()}`;
 
     query += ` LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
-    queryParams.push(parseInt(limit), parseInt(offset));
+    queryParams.push(validLimit, validOffset);
 
     const perfumes = await getMany(query, queryParams);
 
@@ -95,9 +97,9 @@ router.get('/search', async (req, res) => {
       perfumes,
       pagination: {
         total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        has_more: total > parseInt(offset) + perfumes.length
+        limit: validLimit,
+        offset: validOffset,
+        has_more: total > validOffset + perfumes.length
       }
     });
 
@@ -115,18 +117,20 @@ router.get('/:id', async (req, res) => {
     const perfume = await getOne(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'name', n.name,
+              'category', n.category,
+              'family', n.family
+            )
+          ) FROM perfume_notes pn2 
+           INNER JOIN notes n ON pn2.note_id = n.id 
+           WHERE pn2.perfume_id = p.id),
+          '[]'::json
         ) as notes
       FROM perfumes p
-      LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
-      LEFT JOIN notes n ON pn.note_id = n.id
-      WHERE p.id = $1
-      GROUP BY p.id`,
+      WHERE p.id = $1`,
       [id]
     );
 
@@ -158,17 +162,19 @@ router.get('/popular/list', async (req, res) => {
     const perfumes = await getMany(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'name', n.name,
+              'category', n.category,
+              'family', n.family
+            )
+          ) FROM perfume_notes pn2 
+           INNER JOIN notes n ON pn2.note_id = n.id 
+           WHERE pn2.perfume_id = p.id),
+          '[]'::json
         ) as notes
       FROM perfumes p
-      LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
-      LEFT JOIN notes n ON pn.note_id = n.id
-      GROUP BY p.id
       ORDER BY p.name
       LIMIT $1`,
       [parseInt(limit)]
@@ -191,18 +197,20 @@ router.get('/brand/:brand', async (req, res) => {
     const perfumes = await getMany(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'name', n.name,
+              'category', n.category,
+              'family', n.family
+            )
+          ) FROM perfume_notes pn2 
+           INNER JOIN notes n ON pn2.note_id = n.id 
+           WHERE pn2.perfume_id = p.id),
+          '[]'::json
         ) as notes
       FROM perfumes p
-      LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
-      LEFT JOIN notes n ON pn.note_id = n.id
       WHERE p.brand ILIKE $1
-      GROUP BY p.id
       ORDER BY p.name
       LIMIT $2 OFFSET $3`,
       [`%${brand}%`, parseInt(limit), parseInt(offset)]
@@ -225,18 +233,20 @@ router.get('/family/:family', async (req, res) => {
     const perfumes = await getMany(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          (SELECT json_agg(
+            json_build_object(
+              'name', n.name,
+              'category', n.category,
+              'family', n.family
+            )
+          ) FROM perfume_notes pn2 
+           INNER JOIN notes n ON pn2.note_id = n.id 
+           WHERE pn2.perfume_id = p.id),
+          '[]'::json
         ) as notes
       FROM perfumes p
-      LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
-      LEFT JOIN notes n ON pn.note_id = n.id
       WHERE p.family ILIKE $1
-      GROUP BY p.id
       ORDER BY p.name
       LIMIT $2 OFFSET $3`,
       [`%${family}%`, parseInt(limit), parseInt(offset)]

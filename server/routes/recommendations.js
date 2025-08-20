@@ -27,12 +27,19 @@ router.get('/', auth, async (req, res) => {
     let query = `
       SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN n.id IS NOT NULL THEN
+                json_build_object(
+                  'name', n.name,
+                  'category', n.category,
+                  'family', n.family
+                )
+              ELSE NULL
+            END
+          ) FILTER (WHERE n.id IS NOT NULL),
+          '[]'::json
         ) as notes
       FROM perfumes p
       LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
@@ -149,12 +156,19 @@ router.get('/similar/:perfumeId', auth, async (req, res) => {
     const referencePerfume = await getOne(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN n.id IS NOT NULL THEN
+                json_build_object(
+                  'name', n.name,
+                  'category', n.category,
+                  'family', n.family
+                )
+              ELSE NULL
+            END
+          ) FILTER (WHERE n.id IS NOT NULL),
+          '[]'::json
         ) as notes
       FROM perfumes p
       LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id
@@ -172,12 +186,19 @@ router.get('/similar/:perfumeId', auth, async (req, res) => {
     const similarPerfumes = await getMany(
       `SELECT 
         p.*,
-        json_agg(
-          json_build_object(
-            'name', n.name,
-            'category', n.category,
-            'family', n.family
-          )
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN n.id IS NOT NULL THEN
+                json_build_object(
+                  'name', n.name,
+                  'category', n.category,
+                  'family', n.family
+                )
+              ELSE NULL
+            END
+          ) FILTER (WHERE n.id IS NOT NULL),
+          '[]'::json
         ) as notes
       FROM perfumes p
       LEFT JOIN perfume_notes pn ON p.id = pn.perfume_id

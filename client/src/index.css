@@ -154,19 +154,24 @@
   @apply text-amber-400;
 }
 
-/* Note tags */
+/* Note tags styling */
 .note-tag {
-  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-perfume-100 text-perfume-800 border border-perfume-200;
+  @apply inline-block px-2 py-1 text-xs font-medium rounded-full;
 }
 
 .note-tag.top {
-  @apply bg-rose-100 text-rose-800 border-rose-200;
+  @apply bg-pink-100 text-pink-800;
 }
 
 .note-tag.middle {
-  @apply bg-amber-100 text-amber-800 border-amber-200;
+  @apply bg-yellow-100 text-yellow-800;
 }
 
 .note-tag.base {
-  @apply bg-gold-100 text-gold-800 border-gold-200;
+  @apply bg-purple-100 text-purple-800;
+}
+
+/* Default styling for notes without category */
+.note-tag:not(.top):not(.middle):not(.base) {
+  @apply bg-gray-100 text-gray-800;
 }

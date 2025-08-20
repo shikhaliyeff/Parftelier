@@ -1,7 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Components
 import Layout from './components/Layout/Layout';
@@ -61,8 +60,7 @@ const PublicRoute = ({ children }) => {
 function App() {
   return (
     <div className="App">
-      <AnimatePresence mode="wait">
-        <Routes>
+      <Routes>
           {/* Public Routes */}
           <Route path="/login" element={
             <PublicRoute>
@@ -141,9 +139,8 @@ function App() {
           } />
           
           {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />}           />
         </Routes>
-      </AnimatePresence>
     </div>
   );
 }

@@ -38,6 +38,7 @@ const createTables = async () => {
         longevity VARCHAR(100),
         sillage VARCHAR(100),
         price_range VARCHAR(100),
+        image_url VARCHAR(500),
         fragrantica_id VARCHAR(100) UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

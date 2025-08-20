@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || '/api',
-  timeout: 10000,
+  timeout: 30000, // Increased from 10000 to 30000 (30 seconds)
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,9 +15,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('🔗 API Request:', config.method?.toUpperCase(), config.url, config.data || '');
     return config;
   },
   (error) => {
+    console.error('🔗 API Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -25,9 +27,11 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    console.log('🔗 API Response:', response.status, response.config.url, response.data ? 'Data received' : 'No data');
     return response;
   },
   (error) => {
+    console.error('🔗 API Response Error:', error.response?.status, error.config?.url, error.response?.data || error.message);
     // Only log out on 401 (unauthorized) errors, not 404 (not found) errors
     if (error.response?.status === 401) {
       localStorage.removeItem('token');

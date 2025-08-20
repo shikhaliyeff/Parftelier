@@ -61,9 +61,13 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    
+    console.log('🔍 Login attempt:', { email, password: password ? '***' : 'missing' });
+    console.log('🔑 JWT_SECRET in login:', process.env.JWT_SECRET ? 'EXISTS' : 'MISSING');
 
     // Validate input
     if (!email || !password) {
+      console.log('❌ Missing email or password');
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
@@ -74,12 +78,18 @@ router.post('/login', async (req, res) => {
     );
 
     if (!user) {
+      console.log('❌ User not found for email:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    console.log('✅ User found:', { id: user.id, email: user.email, name: user.name });
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    console.log('🔐 Password valid:', isValidPassword);
+    
     if (!isValidPassword) {
+      console.log('❌ Invalid password for user:', email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -89,6 +99,8 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
+
+    console.log('✅ Login successful for user:', email);
 
     res.json({
       message: 'Login successful',
@@ -101,7 +113,7 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ error: 'Failed to login' });
   }
 });
